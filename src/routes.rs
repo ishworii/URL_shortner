@@ -9,7 +9,8 @@ use validator::Validate;
 use crate::{
     db,
     errors::AppError,
-    models::{CreateLinkRequest, LinkResponse},
+    models::{CreateLinkRequest, LinkResponse, RegisterRequest, UserResponse},
+    utils,
 };
 
 pub async fn create_short_link(
@@ -18,7 +19,7 @@ pub async fn create_short_link(
 ) -> Result<Json<LinkResponse>, AppError> {
     payload.validate()?;
     let short_code = nanoid::nanoid!(8);
-    let new_link = db::create_link(&pool, &payload.url, &short_code).await?;
+    let new_link = db::create_link(&pool, &payload.url, &short_code, 1).await?;
     //TODO : do not hardcode
     let response_url = format!("http://localhost:8000/{}", new_link.short_code);
     let response = LinkResponse {
@@ -37,4 +38,20 @@ pub async fn redirect_to_original(
     } else {
         Err(AppError::NotFound)
     }
+}
+
+pub async fn register(
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<RegisterRequest>,
+) -> Result<Json<UserResponse>, AppError> {
+    payload.validate()?;
+    let hashed_password = utils::hash_password(payload.password).await?;
+    let new_user =
+        db::create_user(&pool, &payload.username, &payload.email, &hashed_password).await?;
+    let response = UserResponse {
+        id: new_user.id,
+        username: new_user.username,
+        email: new_user.email,
+    };
+    Ok(Json(response))
 }

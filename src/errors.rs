@@ -9,6 +9,8 @@ pub enum AppError {
     Validation(validator::ValidationErrors),
     Database(sqlx::Error),
     NotFound,
+    Conflict,
+    PasswordHashing(argon2::password_hash::Error),
 }
 
 impl IntoResponse for AppError {
@@ -18,6 +20,18 @@ impl IntoResponse for AppError {
                 let message = format!("Input validation failed. {}", errors).replace("\n", ",");
                 (StatusCode::BAD_REQUEST, message)
             }
+            AppError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::Conflict => (
+                StatusCode::CONFLICT,
+                "Username or email already exists".to_string(),
+            ),
+            AppError::PasswordHashing(err) => {
+                tracing::error!("Password hashing error {}", err);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "An internal error occured".to_string(),
+                )
+            }
             AppError::Database(err) => {
                 tracing::error!("Database error {:?}", err);
                 (
@@ -25,7 +39,6 @@ impl IntoResponse for AppError {
                     "An internal database error occured".to_string(),
                 )
             }
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
         };
         let body = Json(json!({"error" : error_message}));
         (status_code, body).into_response()
@@ -40,6 +53,17 @@ impl From<validator::ValidationErrors> for AppError {
 
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
+        if let Some(db_err) = err.as_database_error() {
+            if db_err.is_unique_violation() {
+                return AppError::Conflict;
+            }
+        }
         AppError::Database(err)
+    }
+}
+
+impl From<argon2::password_hash::Error> for AppError {
+    fn from(err: argon2::password_hash::Error) -> Self {
+        AppError::PasswordHashing(err)
     }
 }
