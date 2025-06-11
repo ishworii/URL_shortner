@@ -1,0 +1,40 @@
+use axum::{
+    Json,
+    extract::{Path, State},
+    response::Redirect,
+};
+use sqlx::SqlitePool;
+use validator::Validate;
+
+use crate::{
+    db,
+    errors::AppError,
+    models::{CreateLinkRequest, LinkResponse},
+};
+
+pub async fn create_short_link(
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<CreateLinkRequest>,
+) -> Result<Json<LinkResponse>, AppError> {
+    payload.validate()?;
+    let short_code = nanoid::nanoid!(8);
+    let new_link = db::create_link(&pool, &payload.url, &short_code).await?;
+    //TODO : do not hardcode
+    let response_url = format!("http://localhost:8000/{}", new_link.short_code);
+    let response = LinkResponse {
+        short_url: response_url,
+    };
+    Ok(Json(response))
+}
+
+pub async fn redirect_to_original(
+    State(pool): State<SqlitePool>,
+    Path(short_code): Path<String>,
+) -> Result<Redirect, AppError> {
+    let link_record = db::find_link_by_short_code(&pool, &short_code).await?;
+    if let Some(link) = link_record {
+        Ok(Redirect::permanent(&link.original_url))
+    } else {
+        Err(AppError::NotFound)
+    }
+}
