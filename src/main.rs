@@ -1,3 +1,4 @@
+mod auth;
 mod db;
 mod errors;
 mod models;
@@ -5,7 +6,7 @@ mod routes;
 mod utils;
 
 use axum::{
-    Router,
+    Router, middleware,
     routing::{get, post},
 };
 
@@ -38,8 +39,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/api/auth/register", post(routes::register))
         .route("/api/auth/login", post(routes::login))
-        .route("/api/links", post(routes::create_short_link))
-        .route("/:short_code", get(routes::redirect_to_original))
+        .route(
+            "/api/links",
+            post(routes::create_short_link)
+                .layer(middleware::from_fn_with_state(db_pool.clone(), auth::auth)),
+        )
+        .route("/{short_code}", get(routes::redirect_to_original))
         .with_state(db_pool);
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::info!("Server listening on {}", addr);

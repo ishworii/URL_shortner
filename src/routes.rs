@@ -1,5 +1,5 @@
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     response::Redirect,
 };
@@ -10,18 +10,21 @@ use crate::{
     db,
     errors::AppError,
     models::{
-        AuthResponse, CreateLinkRequest, LinkResponse, LoginRequest, RegisterRequest, UserResponse,
+        AuthResponse, Claims, CreateLinkRequest, LinkResponse, LoginRequest, RegisterRequest,
+        UserResponse,
     },
     utils,
 };
 
 pub async fn create_short_link(
     State(pool): State<SqlitePool>,
+    Extension(claims): Extension<Claims>,
     Json(payload): Json<CreateLinkRequest>,
 ) -> Result<Json<LinkResponse>, AppError> {
     payload.validate()?;
     let short_code = nanoid::nanoid!(8);
-    let new_link = db::create_link(&pool, &payload.url, &short_code, 1).await?;
+    let user_id = claims.sub;
+    let new_link = db::create_link(&pool, &payload.url, &short_code, user_id).await?;
     //TODO : do not hardcode
     let response_url = format!("http://localhost:8000/{}", new_link.short_code);
     let response = LinkResponse {

@@ -5,7 +5,6 @@ use argon2::{
 };
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
-use serde::de::Error;
 use tokio::task;
 
 pub async fn hash_password(password: String) -> Result<String, argon2::password_hash::Error> {
