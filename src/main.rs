@@ -37,6 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/api/auth/register", post(routes::register))
+        .route("/api/auth/login", post(routes::login))
         .route("/api/links", post(routes::create_short_link))
         .route("/:short_code", get(routes::redirect_to_original))
         .with_state(db_pool);

@@ -10,7 +10,9 @@ pub enum AppError {
     Database(sqlx::Error),
     NotFound,
     Conflict,
+    Unauthorized,
     PasswordHashing(argon2::password_hash::Error),
+    Jwt(jsonwebtoken::errors::Error),
 }
 
 impl IntoResponse for AppError {
@@ -25,6 +27,14 @@ impl IntoResponse for AppError {
                 StatusCode::CONFLICT,
                 "Username or email already exists".to_string(),
             ),
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Invalid credentails".to_string()),
+            AppError::Jwt(err) => {
+                tracing::error!("JWT Error:{}", err);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "An internal error occured".to_string(),
+                )
+            }
             AppError::PasswordHashing(err) => {
                 tracing::error!("Password hashing error {}", err);
                 (
@@ -65,5 +75,11 @@ impl From<sqlx::Error> for AppError {
 impl From<argon2::password_hash::Error> for AppError {
     fn from(err: argon2::password_hash::Error) -> Self {
         AppError::PasswordHashing(err)
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for AppError {
+    fn from(err: jsonwebtoken::errors::Error) -> Self {
+        AppError::Jwt(err)
     }
 }

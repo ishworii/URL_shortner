@@ -9,7 +9,9 @@ use validator::Validate;
 use crate::{
     db,
     errors::AppError,
-    models::{CreateLinkRequest, LinkResponse, RegisterRequest, UserResponse},
+    models::{
+        AuthResponse, CreateLinkRequest, LinkResponse, LoginRequest, RegisterRequest, UserResponse,
+    },
     utils,
 };
 
@@ -53,5 +55,23 @@ pub async fn register(
         username: new_user.username,
         email: new_user.email,
     };
+    Ok(Json(response))
+}
+
+pub async fn login(
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<AuthResponse>, AppError> {
+    payload.validate()?;
+    let user = db::find_user_by_email(&pool, &payload.email)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let password_verified = utils::verify_password(payload.password, user.password_hash).await?;
+    if !password_verified {
+        return Err(AppError::Unauthorized);
+    }
+    let token = utils::generate_jwt(user.id, &user.username)?;
+    let response = AuthResponse { token };
     Ok(Json(response))
 }

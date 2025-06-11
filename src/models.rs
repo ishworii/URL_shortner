@@ -48,3 +48,22 @@ pub struct UserResponse {
     pub username: String,
     pub email: String,
 }
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct LoginRequest {
+    #[validate(email)]
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthResponse {
+    pub token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: i64,
+    pub username: String,
+    pub exp: usize,
+}

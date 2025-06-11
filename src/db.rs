@@ -74,3 +74,25 @@ pub async fn create_user(
     .await?;
     Ok(user)
 }
+
+pub async fn find_user_by_email(
+    pool: &SqlitePool,
+    email: &str,
+) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as!(
+        User,
+        r#"
+        SELECT
+            id as "id!: i64",
+            username,
+            email,
+            password_hash,
+            created_at as "created_at: DateTime<Utc>"
+        FROM users
+        WHERE email = $1
+        "#,
+        email
+    )
+    .fetch_optional(pool)
+    .await
+}
