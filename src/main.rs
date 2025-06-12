@@ -36,15 +36,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Database connection pool created successfully");
 
-    let app = Router::new()
-        .route("/api/auth/register", post(routes::register))
-        .route("/api/auth/login", post(routes::login))
+    let protected_routes = Router::new()
         .route(
             "/api/links",
-            post(routes::create_short_link)
-                .layer(middleware::from_fn_with_state(db_pool.clone(), auth::auth)),
+            post(routes::create_short_link).get(routes::get_user_links),
         )
-        .route("/{short_code}", get(routes::redirect_to_original))
+        .layer(middleware::from_fn_with_state(db_pool.clone(), auth::auth));
+
+    let public_routes = Router::new()
+        .route("/api/auth/register", post(routes::register))
+        .route("/api/auth/login", post(routes::login))
+        .route("/{short_code}", get(routes::redirect_to_original));
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .with_state(db_pool);
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::info!("Server listening on {}", addr);

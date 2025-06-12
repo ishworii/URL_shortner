@@ -11,7 +11,7 @@ use crate::{
     errors::AppError,
     models::{
         AuthResponse, Claims, CreateLinkRequest, LinkResponse, LoginRequest, RegisterRequest,
-        UserResponse,
+        UserLinkResponse, UserResponse,
     },
     utils,
 };
@@ -77,4 +77,21 @@ pub async fn login(
     let token = utils::generate_jwt(user.id, &user.username)?;
     let response = AuthResponse { token };
     Ok(Json(response))
+}
+
+pub async fn get_user_links(
+    State(pool): State<SqlitePool>,
+    Extension(claims): Extension<Claims>,
+) -> Result<Json<Vec<UserLinkResponse>>, AppError> {
+    let user_id = claims.sub;
+    let db_links = db::find_links_by_user_id(&pool, user_id).await?;
+    let response_links: Vec<UserLinkResponse> = db_links
+        .into_iter()
+        .map(|db_link| UserLinkResponse {
+            original_url: db_link.original_url,
+            short_code: db_link.short_code,
+            created_at: db_link.created_at,
+        })
+        .collect();
+    Ok(Json(response_links))
 }

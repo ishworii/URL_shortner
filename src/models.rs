@@ -67,3 +67,10 @@ pub struct Claims {
     pub username: String,
     pub exp: usize,
 }
+
+#[derive(Debug, Serialize)]
+pub struct UserLinkResponse {
+    pub original_url: String,
+    pub short_code: String,
+    pub created_at: DateTime<Utc>,
+}

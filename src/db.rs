@@ -96,3 +96,27 @@ pub async fn find_user_by_email(
     .fetch_optional(pool)
     .await
 }
+
+pub async fn find_links_by_user_id(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> Result<Vec<Link>, sqlx::Error> {
+    let links = sqlx::query_as!(
+        Link,
+        r#"
+        SELECT
+            id as "id!: i64",
+            original_url,
+            short_code,
+            user_id as "user_id!: i64",
+            created_at as "created_at: DateTime<Utc>"
+        FROM links
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        "#,
+        user_id
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(links)
+}
